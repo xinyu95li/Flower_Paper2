@@ -1,0 +1,184 @@
+---
+title: "Composition_Analysis"
+output: html_document
+date: "2022-11-09"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, fig.path = "Images_Ab")
+
+library(tidyverse) # to manipulate the datasets
+library(dplyr)
+library(lubridate) # to deal with dates
+library(nlme) # to conduct linear mixed effect models
+library(car) # to calculate Type III sums of squares
+library(lme4) # to conduct generalized mixed effect models
+library(vegan)
+library(ggplot2)
+library(Rmisc)
+library(multcomp)
+
+setwd("~/Desktop/Flower_Paper2")
+
+sp<-read_csv("SpeciesInfo.csv")  
+wide<-read_csv("FAbundance_wide.csv") %>%
+  filter(Tyear != "GrandTotal") 
+meta<-read_csv("Transect_Meta.csv") 
+
+##normalized ##instead of dividing for whole year, needs to be for each season
+testwide <-read.csv("FAbundance_wide.csv")%>%
+  filter(Tyear !="GrandTotal")%>%
+  mutate_at(vars(-Tyear),funs(./sum(.))) %>%
+  select_if(~ !any(is.na(.)))
+
+testwide2021 <-read.csv("FAbundance_wide.csv")%>%
+  filter(Tyear !="GrandTotal")%>%
+  filter()
+  mutate_at(vars(-Tyear),funs(./sum(.))) %>%
+  select_if(~ !any(is.na(.)))
+
+```
+
+```{r}
+
+#setting up ordination base sheets NOT NORMALIZED
+
+base <- merge(wide,meta, by = "Tyear") %>%
+  mutate(yearround=paste(Year,Round)) %>%
+  mutate(combyear = paste(Year,Status)) %>%
+  mutate(combyearround = paste(yearround, Status)) %>%
+  subset(.,Gtotal != 0)
+
+spdataonly <- data.frame(base[,1:(ncol(base)-17)], row.names = 1)
+spdatameta <- data.frame(base$Tyear, base[,(ncol(base)-16):ncol(base)], row.names = 1)
+spdatameta$Year <- as.factor(spdatameta$Year)
+```
+
+```{r}
+#setting up ordination base sheets NORMALIZED
+
+base <- merge(testwide,meta, by = "Tyear") %>%
+  mutate(yearround=paste(Year,Round)) %>%
+  mutate(combyear = paste(Year,Status)) %>%
+  mutate(combyearround = paste(yearround, Status)) %>%
+  subset(.,Gtotal != 0)
+
+spdataonly <- data.frame(base[,1:(ncol(base)-16)], row.names = 1)
+spdatameta <- data.frame(base$Tyear, base[,(ncol(base)-15):ncol(base)], row.names = 1)
+spdatameta$Year <- as.factor(spdatameta$Year)
+```
+
+```{r}
+status_year.cap <- capscale(spdataonly~Status*Year, spdatameta, dist = "bray")
+status_yearround.cap <- capscale(spdataonly~Status*yearround, spdatameta, dist="bray")
+
+status_year.score <- vegan::scores(status_year.cap)
+status_yearround.score <- vegan::scores(status_yearround.cap)
+
+#composition by year only
+anova(status_year.cap)
+anova.cca(status_year.cap, by = "term")
+status_year.permanova <- adonis2(formula = spdataonly~Status*Year, data = spdatameta, permutations = 999, method ="bray")
+status_year.permanova
+
+#composition by year x round combos
+anova(status_yearround.cap)
+anova.cca(status_yearround.cap, by = "term")
+status_yearround.permanova <- adonis2(formula = spdataonly~Status*yearround, data = spdatameta, permutations = 999, method ="bray")
+status_yearround.permanova
+```
+
+
+
+```{r}
+
+#Year + status
+
+status_year.comb <- capscale(spdataonly~combyear, spdatameta, dist = "bray")
+
+#x <- as.data.frame(vegan::scores(status_year.comb, display = "sites"))
+site.scores <- as.data.frame(vegan::scores(status_year.comb, display = "sites"))
+
+#spCSS <- as.data.frame(vegan::scores(md_CSS_2018.cap, display = "sp"))
+sp.scores <- as.data.frame(vegan::scores(status_year.comb, display = "sp")) %>%
+  filter(abs(CAP1) >0.0|abs(CAP2) > 0.0)
+
+#spCSS$spCode <- row.names(spCSS)
+sp.scores$rowname <- row.names(sp.scores)
+
+spdatameta$CAP1 <- site.scores$CAP1
+spdatameta$CAP2 <- site.scores$CAP2
+
+status_year.plot <- ggplot(spdatameta, aes(x= CAP1, y= CAP2)) + 
+  stat_ellipse(aes(fill = combyear), geom = "polygon", alpha = 0.2) +
+  #geom_path(aes(x = CAP1, y = CAP2, group=Transect, col=Status),arrow = arrow(angle = 30, length=unit(0.1, "in"), type="open"), inherit.aes = FALSE)+
+  theme_classic() + 
+  geom_hline(yintercept = 0, linetype="dotted") + 
+  geom_vline(xintercept = 0, linetype="dotted") +
+  labs(color = "Category") +
+  geom_point(aes(x=CAP1, y=CAP2, col = Status, shape = Year)) +
+  geom_label(data = sp.scores, aes(x= CAP1, y= CAP2, label = rowname), size = 2)
+
+status_year.plot
+
+status_year.spplot <-ggplot(spdatameta, aes(x= CAP1, y= CAP2)) +
+  theme_classic()+ 
+  geom_label(data = sp.scores, aes(x= CAP1, y= CAP2, label = rowname), size = 2) +
+  geom_hline(yintercept = 0, linetype="dotted") + 
+  geom_vline(xintercept = 0, linetype="dotted")
+
+status_year.spplot
+
+```
+
+
+```{r}
+
+#Year + status + round
+
+status_yearround.comb <- capscale(spdataonly~combyearround, spdatameta, dist = "bray")
+
+#x <- as.data.frame(vegan::scores(status_year.comb, display = "sites"))
+site_yearround.scores <- as.data.frame(vegan::scores(status_yearround.comb, display = "sites"))
+
+#spCSS <- as.data.frame(vegan::scores(md_CSS_2018.cap, display = "sp"))
+sp_yearround.scores <- as.data.frame(vegan::scores(status_yearround.comb, display = "sp")) %>%
+  filter(abs(CAP1) >0.0|abs(CAP2) > 0.0)
+
+#spCSS$spCode <- row.names(spCSS)
+sp_yearround.scores$rowname <- row.names(sp_yearround.scores)
+
+spdatameta$CAP1yearround <- site_yearround.scores$CAP1
+spdatameta$CAP2yearround <- site_yearround.scores$CAP2
+
+status_yearround.plot <- ggplot(spdatameta, aes(x= CAP1yearround, y= CAP2yearround)) + 
+  stat_ellipse(aes(fill = combyear), geom = "polygon", alpha = 0.2) +
+  #geom_path(aes(x = CAP1yearround, y = CAP2yearround, group=Transect, col=Status),arrow = arrow(angle = 30, length=unit(0.1, "in"), type="open"), inherit.aes = FALSE)+
+  theme_classic() + 
+  geom_hline(yintercept = 0, linetype="dotted") + 
+  geom_vline(xintercept = 0, linetype="dotted") +
+  labs(color = "Category") +
+  geom_point(aes(x=CAP1yearround, y=CAP2yearround, col = Status, shape = Year)) +
+  geom_label(data = sp_yearround.scores, aes(x= CAP1, y= CAP2, label = rowname), size = 2)
+
+status_yearround.plot
+
+status_yearround.spplot <-ggplot(spdatameta, aes(x= CAP1yearround, y= CAP2yearround)) +
+  theme_classic()+ 
+  geom_label(data = sp_yearround.scores, aes(x= CAP1, y= CAP2, label = rowname), size = 2) +
+  geom_hline(yintercept = 0, linetype="dotted") + 
+  geom_vline(xintercept = 0, linetype="dotted")
+
+status_yearround.spplot
+```
+
+
+
+
+
+
+
+
+
+
+
