@@ -1,0 +1,360 @@
+---
+title: "Abundance_Analysis"
+output: html_document
+date: "2022-11-06"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, fig.path = "Images_Ab")
+
+library(tidyverse) # to manipulate the datasets
+library(dplyr)
+library(lubridate) # to deal with dates
+library(nlme) # to conduct linear mixed effect models
+library(car) # to calculate Type III sums of squares
+library(lme4) # to conduct generalized mixed effect models
+library(vegan)
+library(ggplot2)
+library(Rmisc)
+library(multcomp)
+library(RColorBrewer)
+
+setwd("~/Desktop/Flower_Paper2")
+
+sp<-read.csv("SpeciesInfo.csv", header = TRUE)  
+wide<-read.csv("FAbundance_wide.csv", header = TRUE) %>%
+  filter(Tyear != "GrandTotal")# %>% dplyr::mutate(across(is.numeric, log))
+meta<-read.csv("Transect_Meta.csv", header = TRUE) 
+
+```
+
+```{r, echo = FALSE}
+
+##Total abundance stacked bar graphs
+
+gg2021 <-  wide %>%
+  merge(.,meta, by = "Tyear") %>%
+  filter(Year == 2021) %>%
+  group_by(Status) %>%
+  dplyr::summarise(across(where(is.numeric), sum)) %>%
+    dplyr::select(2:78) 
+
+row.names(gg2021) = c("B", "M", "U")
+
+gg2021 %>%
+  rownames_to_column(var = 'x') %>%
+  pivot_longer(-x) %>%
+  filter(value > 0) %>% 
+  mutate(x = factor(x, levels = c('B', 'M', 'U'))) %>% 
+  ggplot(aes(fill = forcats::fct_rev(name), y = value, x = x, label = value)) +
+  geom_bar(position="stack", stat="identity") +
+  theme(legend.title = element_blank()) +
+  xlab("Burn status") +
+  ylab("Abundance (Count)")
+
+
+gg2022 <-  wide %>%
+  merge(.,meta, by = "Tyear") %>%
+  filter(Year == 2022) %>%
+  group_by(Status) %>%
+  dplyr::summarise(across(where(is.numeric), sum)) %>%
+    dplyr::select(2:78) 
+
+row.names(gg2022) = c("B", "M", "U")
+
+gg2022 %>%
+  rownames_to_column(var = 'x') %>%
+  pivot_longer(-x) %>%
+  filter(value > 0) %>% 
+  mutate(x = factor(x, levels = c('B', 'M', 'U'))) %>% 
+  ggplot(aes(fill = forcats::fct_rev(name), y = value, x = x, label = value )) +
+  geom_bar(position="stack", stat="identity") +
+  theme(legend.title = element_blank()) +
+  xlab("Burn status") +
+  ylab("Abundance (Count)")
+
+##Categories instead of species
+
+gc2021 <-  wide %>%
+  merge(.,meta, by = "Tyear") %>%
+  filter(Year == 2021) %>%
+  group_by(Status) %>%
+  dplyr::summarise(across(where(is.numeric), sum)) %>%
+    dplyr::select(2:78) 
+
+row.names(gc2021) = c("B", "M", "U")
+
+colnames(gc2021) <- plyr::mapvalues(colnames(gc2021), from = sp$spCode, to = as.character(sp$Categorization2) ) 
+  
+
+gc2021 <- as.data.frame(t(rowsum(t(gc2021), group = colnames(gc2021), na.rm = T))) %>%
+  dplyr::select(-NativeGrass)
+
+
+gc2021 %>%
+  rownames_to_column(var = 'x') %>%
+  pivot_longer(-x) %>%
+  filter(value > 0) %>% 
+  mutate(x = factor(x, levels = c('B', 'M', 'U'))) %>% 
+  ggplot(aes(fill = forcats::fct_rev(name), y = value, x = x, label = value)) +
+  geom_bar(position="stack", stat="identity") +
+  theme(legend.title = element_blank()) +
+  xlab("Burn status") +
+  ylab("Abundance (Count)")
+
+gc2022 <-  wide %>%
+  merge(.,meta, by = "Tyear") %>%
+  filter(Year == 2022) %>%
+  group_by(Status) %>%
+  dplyr::summarise(across(where(is.numeric), sum)) %>%
+    dplyr::select(2:78) 
+
+row.names(gc2022) = c("B", "M", "U")
+
+colnames(gc2022) <- plyr::mapvalues(colnames(gc2022), from = sp$spCode, to = as.character(sp$Categorization2) ) 
+  
+
+gc2022 <- as.data.frame(t(rowsum(t(gc2022), group = colnames(gc2022), na.rm = T))) %>%
+  dplyr::select(-NativeGrass)
+
+
+gc2022 %>%
+  rownames_to_column(var = 'x') %>%
+  pivot_longer(-x) %>%
+  filter(value > 0) %>% 
+  mutate(x = factor(x, levels = c('B', 'M', 'U'))) %>% 
+  ggplot(aes(fill = forcats::fct_rev(name), y = value, x = x, label = value)) +
+  geom_bar(position="stack", stat="identity") +
+  theme(legend.title = element_blank()) +
+  xlab("Burn status") +
+  ylab("Abundance (Count)")
+
+
+```
+```{r, echo = FALSE}
+
+##Total abundance stacked bar graphs
+
+gg2021 <-  wide %>%
+  merge(.,meta, by = "Tyear") %>%
+  filter(Year == 2021) %>%
+  group_by(Status) %>%
+  dplyr::summarise(across(where(is.numeric), mean)) %>%
+    dplyr::select(2:78) 
+
+row.names(gg2021) = c("B", "M", "U")
+
+gg2021 %>%
+  rownames_to_column(var = 'x') %>%
+  pivot_longer(-x) %>%
+  filter(value > 0) %>% 
+  mutate(x = factor(x, levels = c('B', 'M', 'U'))) %>% 
+  ggplot(aes(fill = forcats::fct_rev(name), y = value, x = x, label = value)) +
+  geom_bar(position="stack", stat="identity") +
+  theme(legend.title = element_blank()) +
+  xlab("Burn status") +
+  ylab("Abundance (Count)")
+
+
+gg2022 <-  wide %>%
+  merge(.,meta, by = "Tyear") %>%
+  filter(Year == 2022) %>%
+  group_by(Status) %>%
+  dplyr::summarise(across(where(is.numeric), mean)) %>%
+    dplyr::select(2:78) 
+
+row.names(gg2022) = c("B", "M", "U")
+
+gg2022 %>%
+  rownames_to_column(var = 'x') %>%
+  pivot_longer(-x) %>%
+  filter(value > 0) %>% 
+  mutate(x = factor(x, levels = c('B', 'M', 'U'))) %>% 
+  ggplot(aes(fill = forcats::fct_rev(name), y = value, x = x, label = value)) +
+  geom_bar(position="stack", stat="identity") +
+  theme(legend.title = element_blank()) +
+  xlab("Burn status") +
+  ylab("Abundance (Count)")
+
+
+
+```
+
+```{r, echo = FALSE}
+##diversity and richness plots and models
+
+div<-wide %>%  #this line tells R to start with data frame d
+  dplyr::select(-Tyear)%>% 
+  dplyr::select(-Gtotal) %>%
+  mutate(H.div=diversity(.))%>% #create a new data column for the calculation of Shannon's Diversity
+  mutate(spec.rich=specnumber(.)) %>% #create a new data column for species richness
+  mutate(Even=H.div/log(spec.rich)) %>% #create a new data column for species evenness
+  mutate(S.div=diversity(., "inv")) %>% #create a new data column for Simpson's diversity - D2
+  dplyr::select(H.div,spec.rich,Even,S.div)%>% #selects just the new diversity indices
+  bind_cols(.,dplyr::select(wide,Tyear))
+
+sMeta <- data.frame(meta$Tyear, meta$GrpTyear)
+colnames(sMeta) <- c("Tyear", "GrpTyear")
+
+#div2<-merge(sMeta,wide, by= "Tyear") %>% #this line tells R to start with data frame d
+#  dplyr::select(-Gtotal) %>%
+#  dplyr::select(-Tyear) %>%
+#  group_by(GrpTyear) %>%
+#  dplyr::summarise_all(sum) %>%
+#  dplyr::mutate(spec.rich=specnumber(.))%>% #selects just the new diversity indices
+#  left_join(.,sMeta, by = "GrpTyear") %>%
+#  dplyr::select(GrpTyear, spec.rich, Tyear) %>%
+#  dplyr::distinct(.,GrpTyear, .keep_all = TRUE)
+
+div2<-merge(sMeta,wide, by= "Tyear") %>% #this line tells R to start with data frame d
+  dplyr::select(-Gtotal) %>%
+  dplyr::select(-Tyear) %>%
+  group_by(GrpTyear) %>%
+  dplyr::summarise_all(sum) %>%
+  dplyr::distinct(.,GrpTyear, .keep_all = TRUE) %>%
+  dplyr::mutate(spec.rich=specnumber(.)) %>%#selects just the new diversity indices
+  dplyr::mutate(H.div=diversity(.[,2:(ncol(.)-1)]))%>%
+  left_join(.,sMeta, by = "GrpTyear") %>%
+  dplyr::select(GrpTyear, H.div, spec.rich, Tyear) %>%
+  dplyr::distinct(.,GrpTyear, .keep_all = TRUE)
+
+
+meta$Year <- as.factor(meta$Year)
+
+divmeta <- merge(div, meta, by="Tyear")
+divmeta.sub<- summarySE(divmeta, measurevar = "spec.rich", groupvars = c("Transect","Year","Status"), na.rm = TRUE, conf.interval = 0.95)
+divmeta.avg <- merge(divmeta, divmeta.sub, by =c("Transect","Year","Status"))
+divmeta.hsub <- summarySE(divmeta, measurevar = "H.div", c("Transect","Year","Status"), na.rm = TRUE, conf.interval = 0.95)
+divmeta.havg <- merge(divmeta,divmeta.hsub, by = c("Transect", "Year", "Status"))
+
+div2meta <- merge(div2, meta, by = "Tyear")
+
+
+ggplot(divmeta.avg)+
+  facet_wrap(~Status)+
+  ggtitle("Transect flowering richness")+
+  geom_point(aes(x=Year, y=spec.rich.y)) +
+  geom_path(aes(x=Year, y=spec.rich.y, group = Transect))+
+  xlab("Year") +
+  ylab("Flowering richness (Season average)")
+
+ggplot(divmeta.havg)+
+  facet_wrap(~Status)+
+  ggtitle("Diversity")+
+  geom_point(aes(x=Year, y=H.div.y)) +
+  geom_path(aes(x=Year, y=H.div.y, group = Transect))+
+  xlab("Year") +
+  ylab("Shannon diversity (Season average)")
+
+ggplot(div2meta)+
+  facet_wrap(~Status)+
+  ggtitle("Transect flowering richness")+
+  geom_point(aes(x=Year, y=spec.rich)) +
+  geom_path(aes(x=Year, y=spec.rich, group = Transect))+
+  xlab("Year") +
+  ylab("Flowering richness (Season total)")
+
+ggplot(div2meta)+
+  facet_wrap(~Status)+
+  ggtitle("Diversity")+
+  geom_point(aes(x=Year, y=H.div)) +
+  geom_path(aes(x=Year, y=H.div, group = Transect))+
+  xlab("Year") +
+  ylab("Shannon diversity (Season total)")
+
+
+# make a third kind of plot which is number of species/diverisity of species at every visit across the two years. X axis round number (1-6), Y axis the diversity/h indix, colors differentiating the years
+
+#Model for each sample:  Flowering richness~ Fire type x year | Transect as random factor
+
+divmeta.smod <- lme(spec.rich~ Year*Status, random = ~1|Transect, data = divmeta) ##average of season
+summary(divmeta.smod)
+Anova(divmeta.smod, type = "III") ##average them ##time period into model
+
+divmeta.hmod <- lme(H.div~ Year*Status, random = ~1|Transect, data = divmeta)
+summary(divmeta.hmod)
+Anova(divmeta.hmod, type = "III")
+
+#Model for the whole year: Flowering diversity ~ Fire type x year | Transect as random factor
+
+div2meta.smod <- lme(spec.rich~ Year*Status, random = ~1|Transect, data = div2meta) #whole season
+summary(div2meta.smod)
+Anova(div2meta.smod, type = "III")
+
+div2meta.hmod <- lme(H.div~ Year*Status, random = ~1|Transect, data = div2meta)
+summary(div2meta.hmod)
+Anova(div2meta.hmod, type = "III")
+
+```
+
+
+```{r, echo = FALSE}
+
+#Abundance!!!!!
+
+#1. Total abundance across season
+
+widetotal <- wide %>%
+  dplyr::select(Tyear, Gtotal) %>%
+  merge(.,sMeta, by = "Tyear")
+
+Year_abundance<-widetotal %>% #this line tells R to start with data frame d
+  group_by(GrpTyear) %>%
+  dplyr::summarise(Gtotal = sum(Gtotal)) %>%
+  left_join(.,meta, by = "GrpTyear") %>%
+  dplyr::distinct(.,GrpTyear, .keep_all = TRUE)
+
+#ggplot(Year_abundance)+
+#  facet_wrap(~Status)+
+#  ggtitle("Total flowering abundance")+
+#  geom_point(aes(x=Year, y=Gtotal)) +
+#  geom_path(aes(x=Year, y=Gtotal, group = Transect))+
+#  xlab("Year") +
+#  ylab("Flower count (Season total)")
+
+
+#2. Average abundance across season
+
+Year_abundance.avg <- widetotal %>% #this line tells R to start with data frame d
+  left_join(.,meta, by = "GrpTyear") %>%
+  distinct(.,Tyear.x, .keep_all = TRUE)
+
+TAA.sub<- summarySE(Year_abundance.avg, measurevar = "Gtotal", groupvars = c("GrpTyear"), na.rm = TRUE, conf.interval = 0.95)
+TAA.avg <- merge(Year_abundance.avg, TAA.sub, by =c("GrpTyear")) %>%
+  distinct(., GrpTyear, .keep_all=TRUE)
+
+ggplot(TAA.avg)+
+  facet_wrap(~Status)+
+  ggtitle("Average flowering abundance")+
+  geom_point(aes(x=Year, y=Gtotal.y)) +
+  geom_path(aes(x=Year, y=Gtotal.y, group = Transect))+
+  xlab("Year") +
+  ylab("Flower count (Season average)")
+
+TAA.avg.mod <- lme(Gtotal.y~ Year*Status, random = ~1|Transect, data = TAA.avg)
+summary(TAA.avg.mod)
+Anova(TAA.avg.mod, type = "III")
+
+#3. Abundance for rounds
+
+Round_abundance <- widetotal %>%
+  left_join(meta,., by = "Tyear") %>%
+  mutate(spRound = paste(.$Year,.$Round))%>%
+  dplyr::distinct(.,Tyear, .keep_all = TRUE) %>%
+  subset(.,Gtotal !="NA")
+
+ggplot(Round_abundance)+
+  facet_wrap(~Status)+
+  ggtitle("Sample flowering abundance")+
+  geom_point(aes(x=spRound, y=Gtotal)) +
+  geom_path(aes(x=spRound, y=Gtotal, group = Transect))+
+  xlab("Round") +
+  ylab("Flower count (per round)")
+
+Round_abundance.mod <- lme(Gtotal~ spRound*Status, random = ~1|Transect, data = Round_abundance)
+summary(Round_abundance.mod)
+Anova(Round_abundance.mod, type = "III")
+
+```
+
+

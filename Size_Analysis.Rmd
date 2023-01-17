@@ -1,0 +1,212 @@
+---
+title: "Size_Analysis"
+output: html_document
+date: "2022-11-09"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, fig.path = "Images_Ab")
+
+library(tidyverse) # to manipulate the datasets
+library(dplyr)
+library(lubridate) # to deal with dates
+library(nlme) # to conduct linear mixed effect models
+library(car) # to calculate Type III sums of squares
+library(lme4) # to conduct generalized mixed effect models
+library(vegan)
+library(ggplot2)
+library(Rmisc)
+library(multcomp)
+library(mvnormtest)
+
+setwd("~/Desktop/Flower_Paper2")
+
+sp<-read_csv("SpeciesInfo.csv")  
+meta<-read_csv("Transect_Meta.csv")
+sz <- read.csv("Flowersizetest.csv") %>%
+  dplyr::select(-Image)
+
+```
+
+
+
+```{r, echo = FALSE}
+
+nMeta <- data.frame(meta$Tyear, meta$Status, meta$Lat, meta$Long, meta$Aspect, meta$SlopeD, meta$SlopeP, meta$SpRound, meta$Year)
+colnames(nMeta) = c("Tyear", "Status", "Lat", "Long", "Aspect", "SlopeD", "SlopeP", "SpRound", "Year")
+nMeta$Year <- as.factor(nMeta$Year)
+
+SALMEL <- sz %>%
+  filter(Species == "SALMEL") %>%
+  left_join(.,nMeta, by = "Tyear") 
+
+qMeta <- unique(data.frame(SALMEL$Tyear, SALMEL$GrpTyear, SALMEL$Tyear_quad))
+colnames(qMeta) = c("Tyear", "GrpTyear", "Tyear_quad")
+
+SALMEL.qavg_len<- summarySE(SALMEL, measurevar = "Len", groupvars = c("Tyear_quad"), na.rm = TRUE, conf.interval = 0.95)
+SALMEL.qavg_len <- merge(SALMEL.qavg_len, qMeta, by = "Tyear_quad")
+SALMEL.avg_len <- summarySE(SALMEL.qavg_len, measurevar = "Len", groupvars = c("Tyear"), na.rm = TRUE, conf.interval = 0.95)
+SALMEL.avg.meta <- merge(SALMEL.avg_len, nMeta, by = "Tyear") %>%
+  filter(Len < 20) %>%
+  filter(Len > 5.5)
+
+ggplot(SALMEL.avg.meta)+
+  facet_wrap(~Status)+
+  ggtitle("SALMEL length")+
+  geom_point(aes(x=Year, y=Len)) +
+  xlab("Year") +
+  ylab("Length (mm)")
+
+SALMEL.qavg_area<- summarySE(SALMEL, measurevar = "Area", groupvars = c("Tyear_quad"), na.rm = TRUE, conf.interval = 0.95)
+SALMEL.qavg_area <- merge(SALMEL.qavg_area, qMeta, by = "Tyear_quad")
+SALMEL.avg_area <- summarySE(SALMEL.qavg_area, measurevar = "Area", groupvars = c("Tyear"), na.rm = TRUE, conf.interval = 0.95)
+SALMEL.area.meta <- merge(SALMEL.avg_area, nMeta, by = "Tyear")
+
+ggplot(SALMEL.area.meta)+
+  facet_wrap(~Status)+
+  ggtitle("SALMEL area")+
+  geom_point(aes(x=Year, y=Area)) +
+  xlab("Year") +
+  ylab("Area (mm2)")
+
+SALMEL.len.area <-merge(SALMEL.area.meta, SALMEL.avg.meta, by="Tyear")
+
+ggplot(SALMEL.len.area)+
+  facet_wrap(~Year.x)+
+  ggtitle("SALMEL length and area")+
+  geom_point(aes(x=Len, y=Area, colour = Status.x)) +
+  xlab("Length(mm2") +
+  ylab("Area (mm2)")
+
+
+
+```
+
+```{r, echo = FALSE}
+
+#EROCIC GILANG EROBOT BRANIG EUCCHR PHACIC PHAPAR SOLXAN
+
+nMeta <- data.frame(meta$Tyear, meta$Status, meta$Lat, meta$Long, meta$Aspect, meta$SlopeD, meta$SlopeP, meta$SpRound, meta$Year)
+colnames(nMeta) = c("Tyear", "Status", "Lat", "Long", "Aspect", "SlopeD", "SlopeP", "SpRound", "Year")
+nMeta$Year <- as.factor(nMeta$Year)
+
+SOLXAN <- sz %>%
+  filter(Species == "SOLXAN") %>% 
+  left_join(.,nMeta, by = "Tyear") 
+
+qMeta <- unique(data.frame(SOLXAN$Tyear, SOLXAN$GrpTyear, SOLXAN$Tyear_quad))
+colnames(qMeta) = c("Tyear", "GrpTyear", "Tyear_quad")
+
+SOLXAN.qavg_len<- summarySE(SOLXAN, measurevar = "Len", groupvars = c("Tyear_quad"), na.rm = TRUE, conf.interval = 0.95)
+SOLXAN.qavg_len <- merge(SOLXAN.qavg_len, qMeta, by = "Tyear_quad")
+SOLXAN.avg_len <- summarySE(SOLXAN.qavg_len, measurevar = "Len", groupvars = c("Tyear"), na.rm = TRUE, conf.interval = 0.95)
+SOLXAN.avg.meta <- merge(SOLXAN.avg_len, nMeta, by = "Tyear") %>%
+  filter(Len < 1000) 
+
+ggplot(SOLXAN.avg.meta)+
+  facet_wrap(~Status)+
+  ggtitle("SOLXAN length")+
+  geom_point(aes(x=Year, y=Len)) +
+  xlab("Year") +
+  ylab("Length (mm)")
+
+SOLXAN.qavg_area<- summarySE(SOLXAN, measurevar = "Area", groupvars = c("Tyear_quad"), na.rm = TRUE, conf.interval = 0.95)
+SOLXAN.qavg_area <- merge(SOLXAN.qavg_area, qMeta, by = "Tyear_quad")
+SOLXAN.avg_area <- summarySE(SOLXAN.qavg_area, measurevar = "Area", groupvars = c("Tyear"), na.rm = TRUE, conf.interval = 0.95)
+SOLXAN.area.meta <- merge(SOLXAN.avg_area, nMeta, by = "Tyear") %>%
+  filter(Area <2000)
+
+ggplot(SOLXAN.area.meta)+
+  facet_wrap(~Status)+
+  ggtitle("SOLXAN area")+
+  geom_point(aes(x=Year, y=Area)) +
+  xlab("Year") +
+  ylab("Area (mm2)")
+
+SOLXAN.len.area <-merge(SOLXAN.area.meta, SOLXAN.avg.meta, by="Tyear")
+
+ggplot(SOLXAN.len.area)+
+  facet_wrap(~Year.x)+
+  ggtitle("SOLXAN length and area")+
+  geom_point(aes(x=Len, y=Area, colour = Status.x)) +
+  xlab("Length(mm2") +
+  ylab("Area (mm2)")
+
+```
+
+
+```{r, echo = FALSE}
+
+##multivariate test
+
+sp_sz <- sz %>%
+  left_join(.,nMeta, by = "Tyear") %>%
+  mutate(Tyear = paste(Species, Tyear)) %>%
+  mutate(GrpTyear = paste(Species, GrpTyear)) %>%
+  mutate(Tyear_quad = paste(Species,Tyear_quad))
+
+multi <- sz %>%
+  left_join(.,nMeta, by = "Tyear") %>%
+  mutate(Tyear_quad = paste(Species,Tyear_quad))%>%
+  group_by(.,Tyear_quad) %>%
+  summarise_at(vars(Len), list(lenmean = mean)) %>%
+  ungroup() %>%
+  left_join(.,sp_sz, by = "Tyear_quad") %>%
+  group_by(.,Tyear) %>%
+  summarise_at(vars(lenmean), list(lenmeanmean = mean)) %>%
+  ungroup() %>%
+  left_join(., sp_sz, by = "Tyear") %>%
+  group_by(.,GrpTyear) %>%
+  summarise_at(vars(lenmeanmean), list(finmean = mean)) %>%
+  ungroup() %>%
+  left_join(.,sp_sz, by = "GrpTyear") %>%
+  distinct(GrpTyear, .keep_all = TRUE)
+  
+newmulti <- data.frame(multi$Species, multi$finmean, multi$GrpTyear, multi$Site, multi$Year.x, multi$Status)
+colnames(newmulti) <- c("Species", "MeanLen", "SpGrpTyear", "Site", "Year", "Status")
+newmulti <- newmulti %>%
+  mutate(GrpTyear = paste(Site,"_",Year)) %>%
+  mutate(GrpTyear = gsub(" ","",GrpTyear)) 
+nmulti <- data.frame(newmulti$GrpTyear, newmulti$Species, newmulti$MeanLen)
+colnames(nmulti) <- c("GrpTyear", "Species", "MeanLen")
+
+wide_multi <- reshape(nmulti, idvar = "GrpTyear", timevar = "Species", direction = "wide") ##wide format of all species averages for transect_year combos
+
+na_col <- data.frame(colSums(!is.na(wide_multi)))
+na_wide <- as.data.frame(t(na_col))
+
+wide_multi[nrow(wide_multi) + 1,] <- na_wide
+rownames(wide_multi)[nrow(wide_multi)] <- "NaCount"
+
+sorted_wide_multi <- wide_multi[c(1, order(-wide_multi[nrow(wide_multi), -1]) + 1)]
+
+
+#MANOVA - need the data to be in the following format: wide format of the measurements with species across the top and lengths below, burn status below
+
+```
+
+
+
+```{r, echo = FALSE}
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
